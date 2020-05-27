@@ -5,10 +5,10 @@
   ```sh
   wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war
   yum -y install java
-  java -jar jenkins.war
+  nohup java -jar jenkins.war
   ```
 
-* Add inbound port rules: 8080
+* Add inbound port rule: 8080
 
 * Visit http://40.73.22.218:8080 and Unlock Jenkins with initialAdminPassword
 
@@ -23,19 +23,19 @@
   Check 'Ignore browser preference and force this language to all users'
   ```
 
-* Install some more useful plugins: Rebuilder, Safe Restart
+* Install some useful plugins: Rebuilder, Safe Restart
 
 * Configure Global Security - Matrix-based security - Add user wluo - Grant all permissions
 
 * Add a new user gandalf and grant all permissions except 'Administer'
 
-* TomcatServer, turn off firewall (for non-production environments)
+* TomcatServer, turn off firewall (for non-production environment)
 
   ```sh
-  systemctl stop firewalld && systemctl disable firewalld && yum -y install java git
+  systemctl stop firewalld && systemctl disable firewalld && yum -y install git java-1.8.0-openjdk-devel
   ```
 
-* Create git user and ssh key, apply it in 'SSH and GPG keys' of Github
+* Create git user and ssh key, apply it in Github (SSH and GPG keys)
 
   ```sh
   git config --global user.name "warrenluo" && git config --global user.email "warrenluo@126.com"
@@ -74,27 +74,140 @@
   #
   bin/startup.sh
   ps -ef | grep tomcat
-  # Add inbound port rules 8090 and visit http://tomcatserver.chinanorth2.cloudapp.chinacloudapi.cn:8090
+  # Add inbound port rule 8090 and visit http://tomcatserver.chinanorth2.cloudapp.chinacloudapi.cn:8090
   ```
 
-* JenkinsServer, New node - 'Test Env'' and check 'Permanent Agent'
+* JenkinsServer, New node - 'TestEnv' and check 'Permanent Agent'
 
   ```sh
   Remote root directory: /root/.jenkins
   Launch method: Launch agents via SSH
-  Host: IP of TomcatServer
+  Host: TomcatServer IP
   Credentials: Username, Password
   Host Key Verification Strategy: Non verifying Verification Strategy
   ```
 
-* Verify the Test Env with a Freestyle project
+* Verify the TestEnv with a Freestyle project
 
   ```sh
-  Enter an item name: Test Env
-  Restrict where this project can be run: Test Env
+  Enter an item name: TestEnv
+  Restrict where this project can be run: TestEnv
   Add build step: Execute shell
   Command: ifconfig
   # Build Now & View Console Output
   ```
 
-  
+* Fork a sample SpringBoot project (princeqjzh/order) in Github
+
+* Make sure you can connect Github using SSH
+
+  ```sh
+  git config --global user.name "warrenluo"
+  git config --global user.email "warrenluo@126.com"
+  ssh-keygen -t rsa -C "warrenluo@126.com"
+  eval $(ssh-agent -s)
+  ssh-add /c/Users/luo.wei/.ssh/id_rsa
+  clip < /c/Users/luo.wei/.ssh/id_rsa.pub
+  # Apply the SSH key in Github
+  ssh -T git@github.com
+  ```
+
+* Clone with SSH
+
+  ```sh
+  git clone git@github.com:DevOps-Notes/order.git
+  ```
+
+* Open the project in IDEA, try build it
+
+  ```sh
+  Maven Projects - clean + CTRL + install - Run Maven Build
+  ```
+
+* MySQLServer, install MariaDB
+
+  ```sh
+  yum -y install mariadb mariadb-server
+  systemctl start mariadb && systemctl enable mariadb
+  mysql -e "UPDATE mysql.user SET Password=PASSWORD('********') WHERE user='root'" && mysql -e 'FLUSH PRIVILEGES'
+  mysql -uroot -p******** -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '********' WITH GRANT OPTION"
+  ```
+
+* Import database using SQLyog
+
+* Apply the database to project in IDEA (.\src\main\resources\spring\applicationContext.xml)
+
+  ```xml
+  <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+      <property name="driverClassName" value="com.mysql.jdbc.Driver" />
+      <property name="url" value="jdbc:mysql://YourDBHost:YourDBPort/order?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8" />
+      <property name="username" value="YourDBUsername" />
+      <property name="password" value="YourDBPassword" />
+  </bean>
+  ```
+
+* Try run the project in IDEA
+
+  ```sh
+  Maven Projects - Plugins - tomcat7 - tomcat7:run
+  Visit http://localhost:8071
+  ```
+
+* Push the update to Github
+
+  ```sh
+  git add .
+  git commit -m 'applicationContext.xml updated'
+  git push
+  ```
+
+* Create Jenkins task DeployOrder
+
+  ```sh
+  Restrict where this project can be run: TestEnv
+  Git Repository URL: git@github.com:DevOps-Notes/order.git
+  Additional Behaviours - Check out to a sub-directory: order
+  Build - Execute shell:
+  #
+  BUILD_ID=DONTKILLME
+  . /etc/profile
+  export PROJ_PATH=`pwd`
+  export TOMCAT_APP_PATH=/root/apache-tomcat-9.0.35
+  sh $PROJ_PATH/order/deploy.sh
+  #
+
+  # deploy.sh
+  #!/usr/bin/env bash
+  killTomcat()
+  {
+      pid=`ps -ef | grep tomcat | grep java | awk '{print $2}'`
+      echo "Tomcat pid list: $pid"
+      if [ "$pid" = "" ]
+      then
+        echo "No alive tomcat process"
+      else
+        kill -9 $pid
+      fi
+  }
+
+  # Build project
+  cd $PROJ_PATH/order && mvn clean install
+
+  # Stop Tomcat
+  killTomcat
+
+  # Delete old version
+  rm -f  $TOMCAT_APP_PATH/webapps/ROOT.war
+  rm -rf $TOMCAT_APP_PATH/webapps/ROOT
+
+  # Copy new version
+  cp $PROJ_PATH/order/target/order.war $TOMCAT_APP_PATH/webapps/
+  cd $TOMCAT_APP_PATH/webapps/ && mv order.war ROOT.war
+
+  # Start Tomcat
+  cd $TOMCAT_APP_PATH/ && sh bin/startup.sh
+  ```
+
+* Build Now and visit http://tomcatserver.chinanorth2.cloudapp.chinacloudapi.cn:8090
+
+* Do some changes to a JSP file, then push the changes to Github and Rebuild in Jenkins.

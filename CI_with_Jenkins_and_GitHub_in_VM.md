@@ -3,8 +3,8 @@
 * Start Jenkins
 
   ```sh
-  wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war
-  yum -y install java
+  wget http://mirrors.jenkins.io/war/latest/jenkins.war
+  yum -y install java-1.8.0-openjdk-devel
   nohup java -jar jenkins.war
   ```
 
@@ -16,7 +16,7 @@
 
 * Create First Admin User
 
-* Install Locale plugin and go to Configure System
+* Install Locale plugin and go to Configure System (if needed)
 
   ```sh
   Locale - Default Language:'en_US'
@@ -77,21 +77,21 @@
   # Add inbound port rule 8090 and visit http://tomcatserver.chinanorth2.cloudapp.chinacloudapi.cn:8090
   ```
 
-* JenkinsServer, New node - 'TestEnv' and check 'Permanent Agent'
+* JenkinsServer, New node - 'TomcatServer' and check 'Permanent Agent'
 
   ```sh
   Remote root directory: /root/.jenkins
   Launch method: Launch agents via SSH
   Host: TomcatServer IP
-  Credentials: Username, Password
+  Credentials: Setup Jenkins(Username, Password), then choose 'root/******'
   Host Key Verification Strategy: Non verifying Verification Strategy
   ```
 
-* Verify the TestEnv with a Freestyle project
+* Verify the node TomcatServer with a Freestyle project
 
   ```sh
-  Enter an item name: TestEnv
-  Restrict where this project can be run: TestEnv
+  Enter an item name: just-a-test
+  Restrict where this project can be run: TomcatServer
   Add build step: Execute shell
   Command: ifconfig
   # Build Now & View Console Output
@@ -129,11 +129,12 @@
   ```sh
   yum -y install mariadb mariadb-server
   systemctl start mariadb && systemctl enable mariadb
-  mysql -e "UPDATE mysql.user SET Password=PASSWORD('********') WHERE user='root'" && mysql -e 'FLUSH PRIVILEGES'
-  mysql -uroot -p******** -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '********' WITH GRANT OPTION"
+  mysql -e "UPDATE mysql.user SET Password=PASSWORD('Root1234') WHERE user='root'"
+  mysql -e 'FLUSH PRIVILEGES'
+  mysql -uroot -pRoot1234 -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'Root1234' WITH GRANT OPTION"
   ```
 
-* Import database using SQLyog
+* Add endpoint 3306 and Import database using SQLyog
 
 * Apply the database to project in IDEA (.\src\main\resources\spring\applicationContext.xml)
 
@@ -161,10 +162,10 @@
   git push
   ```
 
-* Create Jenkins task DeployOrder
+* Create Jenkins task preview-environment
 
   ```sh
-  Restrict where this project can be run: TestEnv
+  Restrict where this project can be run: TomcatServer
   Git Repository URL: git@github.com:DevOps-Notes/order.git
   Additional Behaviours - Check out to a sub-directory: order
   Build - Execute shell:

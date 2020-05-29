@@ -102,8 +102,7 @@
 * Make sure you can connect Github using SSH
 
   ```sh
-  git config --global user.name "warrenluo"
-  git config --global user.email "warrenluo@126.com"
+  git config --global user.name "warrenluo" && git config --global user.email "warrenluo@126.com"
   ssh-keygen -t rsa -C "warrenluo@126.com"
   eval $(ssh-agent -s)
   ssh-add /c/Users/luo.wei/.ssh/id_rsa
@@ -111,7 +110,7 @@
   # Apply the SSH key in Github
   ssh -T git@github.com
   ```
-
+  
 * Clone with SSH
 
   ```sh
